@@ -2,21 +2,21 @@ use std::time::Duration;
 
 use colored::*;
 use solana_client::{
-    client_error::{ClientError, ClientErrorKind, Result as ClientResult},
+    client_error::{ ClientError, ClientErrorKind, Result as ClientResult },
     rpc_config::RpcSendTransactionConfig,
 };
 use solana_program::{
     instruction::Instruction,
-    native_token::{lamports_to_sol, sol_to_lamports},
+    native_token::{ lamports_to_sol, sol_to_lamports },
 };
 use solana_rpc_client::spinner;
 use solana_sdk::{
     commitment_config::CommitmentLevel,
     compute_budget::ComputeBudgetInstruction,
-    signature::{Signature, Signer},
+    signature::{ Signature, Signer },
     transaction::Transaction,
 };
-use solana_transaction_status::{TransactionConfirmationStatus, UiTransactionEncoding};
+use solana_transaction_status::{ TransactionConfirmationStatus, UiTransactionEncoding };
 
 use crate::Miner;
 
@@ -25,9 +25,9 @@ const MIN_SOL_BALANCE: f64 = 0.005;
 const RPC_RETRIES: usize = 0;
 const _SIMULATION_RETRIES: usize = 4;
 const GATEWAY_RETRIES: usize = 150;
-const CONFIRM_RETRIES: usize = 8;
+const CONFIRM_RETRIES: usize = 1;
 
-const CONFIRM_DELAY: u64 = 500;
+const CONFIRM_DELAY: u64 = 0;
 const GATEWAY_DELAY: u64 = 0; //300;
 
 pub enum ComputeBudget {
@@ -40,7 +40,7 @@ impl Miner {
         &self,
         ixs: &[Instruction],
         compute_budget: ComputeBudget,
-        skip_confirm: bool,
+        skip_confirm: bool
     ) -> ClientResult<Signature> {
         let signer = self.signer();
         let client = self.rpc_client.clone();
@@ -63,10 +63,10 @@ impl Miner {
         match compute_budget {
             ComputeBudget::Dynamic => {
                 // TODO simulate
-                final_ixs.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000))
+                final_ixs.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
             }
             ComputeBudget::Fixed(cus) => {
-                final_ixs.push(ComputeBudgetInstruction::set_compute_unit_limit(cus))
+                final_ixs.push(ComputeBudgetInstruction::set_compute_unit_limit(cus));
             }
         }
 
@@ -76,9 +76,7 @@ impl Miner {
         };
         println!("  Priority fee: {} microlamports", priority_fee);
 
-        final_ixs.push(ComputeBudgetInstruction::set_compute_unit_price(
-            priority_fee,
-        ));
+        final_ixs.push(ComputeBudgetInstruction::set_compute_unit_price(priority_fee));
         final_ixs.extend_from_slice(ixs);
 
         // Build tx
@@ -93,8 +91,7 @@ impl Miner {
 
         // Sign tx
         let (hash, _slot) = client
-            .get_latest_blockhash_with_commitment(self.rpc_client.commitment())
-            .await
+            .get_latest_blockhash_with_commitment(self.rpc_client.commitment()).await
             .unwrap();
 
         if signer.pubkey() == fee_payer.pubkey() {
@@ -107,7 +104,7 @@ impl Miner {
         let progress_bar = spinner::new_progress_bar();
         let mut attempts = 0;
         loop {
-            progress_bar.set_message(format!("Submitting transaction... (attempt {})", attempts,));
+            progress_bar.set_message(format!("Submitting transaction... (attempt {})", attempts));
 
             match client.send_transaction_with_config(&tx, send_cfg).await {
                 Ok(sig) => {
@@ -125,11 +122,9 @@ impl Miner {
                                 for status in signature_statuses.value {
                                     if let Some(status) = status {
                                         if let Some(err) = status.err {
-                                            progress_bar.finish_with_message(format!(
-                                                "{}: {}",
-                                                "ERROR".bold().red(),
-                                                err
-                                            ));
+                                            progress_bar.finish_with_message(
+                                                format!("{}: {}", "ERROR".bold().red(), err)
+                                            );
                                             return Err(ClientError {
                                                 request: None,
                                                 kind: ClientErrorKind::Custom(err.to_string()),
@@ -138,13 +133,11 @@ impl Miner {
                                         if let Some(confirmation) = status.confirmation_status {
                                             match confirmation {
                                                 TransactionConfirmationStatus::Processed => {}
-                                                TransactionConfirmationStatus::Confirmed
+                                                | TransactionConfirmationStatus::Confirmed
                                                 | TransactionConfirmationStatus::Finalized => {
-                                                    progress_bar.finish_with_message(format!(
-                                                        "{} {}",
-                                                        "OK".bold().green(),
-                                                        sig
-                                                    ));
+                                                    progress_bar.finish_with_message(
+                                                        format!("{} {}", "OK".bold().green(), sig)
+                                                    );
                                                     return Ok(sig);
                                                 }
                                             }
@@ -155,11 +148,9 @@ impl Miner {
 
                             // Handle confirmation errors
                             Err(err) => {
-                                progress_bar.set_message(format!(
-                                    "{}: {}",
-                                    "ERROR".bold().red(),
-                                    err.kind().to_string()
-                                ));
+                                progress_bar.set_message(
+                                    format!("{}: {}", "ERROR".bold().red(), err.kind().to_string())
+                                );
                             }
                         }
                     }
@@ -167,11 +158,9 @@ impl Miner {
 
                 // Handle submit errors
                 Err(err) => {
-                    progress_bar.set_message(format!(
-                        "{}: {}",
-                        "ERROR".bold().red(),
-                        err.kind().to_string()
-                    ));
+                    progress_bar.set_message(
+                        format!("{}: {}", "ERROR".bold().red(), err.kind().to_string())
+                    );
                 }
             }
 
@@ -190,7 +179,6 @@ impl Miner {
 
     // TODO
     fn _simulate(&self) {
-
         // Simulate tx
         // let mut sim_attempts = 0;
         // 'simulate: loop {
